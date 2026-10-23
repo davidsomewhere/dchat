@@ -85,7 +85,7 @@ app.post('/api/join', auth, wrap(async (req, res) => {
 }));
 app.post('/api/servers/:id/channels', auth, wrap(async (req, res) => {
   const [s] = await q('SELECT * FROM servers WHERE id=$1', [req.params.id]);
-  if (!s || s.owner !== req.u.id) return res.status(403).json({ error: 'Only the owner can add channels.' });
+  if (!s || (s.owner !== req.u.id && !isAdm(req.u))) return res.status(403).json({ error: 'Only the owner can add channels.' });
   const name = (req.body.name || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 30);
   if (!name) return res.status(400).json({ error: 'Give the channel a name.' });
   await q('INSERT INTO channels(sid,name) VALUES($1,$2)', [s.id, name]);
@@ -99,7 +99,7 @@ app.get('/api/servers/:id/members', auth, wrap(async (req, res) => {
 app.get('/api/channels/:id/messages', auth, wrap(async (req, res) => {
   const [c] = await q('SELECT sid FROM channels WHERE id=$1', [req.params.id]);
   if (!c || !(await isMember(req.u.id, c.sid))) return res.status(403).json({ error: 'No access.' });
-  const rows = await q(`SELECT * FROM (SELECT m.id,m.body,m.file,m.ts,u.username,u.pfp,u.color,m.uid,(lower(u.username)='davidsomewhere') AS owner,(coalesce(u.staff,false) OR lower(u.username)='thierry') AS staff FROM messages m JOIN users u ON u.id=m.uid
+  const rows = await q(`SELECT * FROM (SELECT m.id,m.body,m.file,m.ts,u.username,u.pfp,u.color,m.uid,m.edited,(lower(u.username)='davidsomewhere') AS owner,(coalesce(u.staff,false) OR lower(u.username)='thierry') AS staff FROM messages m JOIN users u ON u.id=m.uid
     WHERE m.cid=$1 ORDER BY m.id DESC LIMIT 100) x ORDER BY id`, [req.params.id]);
   res.json(rows);
 }));
@@ -132,6 +132,14 @@ app.delete('/api/messages/:id', auth, wrap(async (req, res) => {
   await q('DELETE FROM messages WHERE id=$1', [req.params.id]);
   wss.clients.forEach(c => c.readyState === 1 && c.send(JSON.stringify({ del: +req.params.id })));
   res.json({ ok: 1 });
+}));
+
+app.patch('/api/messages/:id', auth, wrap(async (req, res) => {
+  const body = (req.body.body || '').slice(0, 2000);
+  if (!body.trim()) return res.status(400).json({ error: 'Message cannot be empty.' });
+  const [m] = await q('UPDATE messages SET body=$1,edited=true WHERE id=$2 AND uid=$3 RETURNING id', [body, +req.params.id || 0, req.u.id]);
+  if (!m) return res.status(403).json({ error: 'You can only edit your own messages.' });
+  wss.clients.forEach(c => c.readyState === 1 && c.send(JSON.stringify({ edit: { id: m.id, body } }))); res.json({ ok: 1 });
 }));
 
 // Owner admin panel
@@ -182,6 +190,52 @@ app.post('/api/admin/announce', auth, adm, wrap(async (req, res) => {
   wss.clients.forEach(c => c.readyState === 1 && c.send(JSON.stringify({ announce: { text, by: req.u.username } }))); res.json({ ok: 1 });
 }));
 
+// Server settings (server owner, or site staff)
+const manage = async (req, res) => {
+  const [s] = await q('SELECT * FROM servers WHERE id=$1 AND NOT dm', [+req.params.id || 0]);
+  if (!s || (s.owner !== req.u.id && !isAdm(req.u))) { res.status(403).json({ error: 'Only the server owner can do that.' }); return null; }
+  return s;
+};
+const ping = async sid => { const ids = new Set((await q('SELECT uid FROM members WHERE sid=$1', [sid])).map(r => r.uid)); wss.clients.forEach(c => c.readyState === 1 && ids.has(c.uid) && c.send(JSON.stringify({ refresh: 1 }))); };
+const media = (v, old) => v === '' ? null : mu(v, old);
+app.patch('/api/servers/:id', auth, wrap(async (req, res) => {
+  const s = await manage(req, res); if (!s) return; const b = req.body;
+  await q('UPDATE servers SET name=$1,icon=$2,banner=$3,descr=$4 WHERE id=$5', [String(b.name ?? s.name).trim().slice(0, 40) || s.name, media(b.icon, s.icon), media(b.banner, s.banner), String(b.descr ?? s.descr ?? '').slice(0, 200), s.id]);
+  await ping(s.id); res.json(await serversFor(req.u.id));
+}));
+app.post('/api/servers/:id/invite', auth, wrap(async (req, res) => { const s = await manage(req, res); if (!s) return; await q('UPDATE servers SET invite=$1 WHERE id=$2', [rid(4), s.id]); await ping(s.id); res.json(await serversFor(req.u.id)); }));
+const chan = async (req, res) => { const [c] = await q('SELECT * FROM channels WHERE id=$1', [+req.params.id || 0]); if (!c) { res.sendStatus(404); return []; } req.params.id = c.sid; const s = await manage(req, res); return s ? [c, s] : []; };
+app.patch('/api/channels/:id', auth, wrap(async (req, res) => {
+  const [c, s] = await chan(req, res); if (!c) return;
+  const name = (req.body.name || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 30); if (!name) return res.status(400).json({ error: 'Give the channel a name.' });
+  await q('UPDATE channels SET name=$1 WHERE id=$2', [name, c.id]); await ping(s.id); res.json(await serversFor(req.u.id));
+}));
+app.delete('/api/channels/:id', auth, wrap(async (req, res) => {
+  const [c, s] = await chan(req, res); if (!c) return;
+  if ((await q('SELECT count(*)::int n FROM channels WHERE sid=$1', [s.id]))[0].n < 2) return res.status(400).json({ error: 'A server needs at least one channel.' });
+  await q('DELETE FROM channels WHERE id=$1', [c.id]); await ping(s.id); res.json(await serversFor(req.u.id));
+}));
+app.delete('/api/servers/:id/members/:uid', auth, wrap(async (req, res) => {
+  const s = await manage(req, res); if (!s) return; const uid = +req.params.uid;
+  if (uid === s.owner || uid === req.u.id) return res.status(400).json({ error: "You can't remove the owner." });
+  await q('DELETE FROM members WHERE sid=$1 AND uid=$2', [s.id, uid]); await ping(s.id); live(uid, c => c.send(JSON.stringify({ refresh: 1 }))); res.json({ ok: 1 });
+}));
+app.post('/api/servers/:id/transfer', auth, wrap(async (req, res) => {
+  const s = await manage(req, res); if (!s) return; const uid = +req.body.uid;
+  if (!(await isMember(uid, s.id))) return res.status(400).json({ error: 'They need to be a member first.' });
+  await q('UPDATE servers SET owner=$1 WHERE id=$2', [uid, s.id]); await ping(s.id); res.json(await serversFor(req.u.id));
+}));
+app.post('/api/servers/:id/leave', auth, wrap(async (req, res) => {
+  const [s] = await q('SELECT * FROM servers WHERE id=$1 AND NOT dm', [+req.params.id || 0]); if (!s) return res.sendStatus(404);
+  if (s.owner === req.u.id) return res.status(400).json({ error: 'Transfer ownership or delete the server first.' });
+  await q('DELETE FROM members WHERE sid=$1 AND uid=$2', [s.id, req.u.id]); await ping(s.id); res.json(await serversFor(req.u.id));
+}));
+app.delete('/api/servers/:id', auth, wrap(async (req, res) => {
+  const s = await manage(req, res); if (!s) return;
+  const ids = (await q('SELECT uid FROM members WHERE sid=$1', [s.id])).map(r => r.uid);
+  await q('DELETE FROM servers WHERE id=$1', [s.id]); ids.forEach(id => live(id, c => c.send(JSON.stringify({ refresh: 1 })))); res.json({ ok: 1 });
+}));
+
 // Profiles and DMs (a DM is a hidden two-person server with one channel, so chat code is shared)
 app.get('/api/users/:id', auth, wrap(async (req, res) => { const [u] = await q('SELECT * FROM users WHERE id=$1', [+req.params.id || 0]); u ? res.json(pub(u)) : res.sendStatus(404); }));
 const dmList = async uid => (await q(`SELECT s.id sid,(SELECT id FROM channels WHERE sid=s.id LIMIT 1) cid,u.* FROM servers s
@@ -214,11 +268,12 @@ wss.on('connection', async (ws, req) => {
       if (ws.muted) return ws.send(JSON.stringify({ err: 'You are muted.' }));
       const body = (m.body || '').slice(0, 2000), file = (m.file || '').slice(0, 100);
       if (!body.trim() && !file) return;
+      const [fu] = await q('SELECT * FROM users WHERE id=$1', [u.id]); if (!fu || fu.banned) return;
       const [c] = await q('SELECT sid FROM channels WHERE id=$1', [m.cid]);
       if (!c || !(await isMember(u.id, c.sid))) return;
       const [row] = await q('INSERT INTO messages(cid,uid,body,file) VALUES($1,$2,$3,$4) RETURNING id,ts', [m.cid, u.id, body, file || null]);
       const ids = new Set((await q('SELECT uid FROM members WHERE sid=$1', [c.sid])).map(r => r.uid));
-      const out = JSON.stringify({ cid: m.cid, id: row.id, ts: row.ts, body, file: file || null, username: u.username, pfp: u.pfp, color: u.color, owner: isOwner(u), staff: isStaff(u), uid: u.id });
+      const out = JSON.stringify({ cid: m.cid, id: row.id, ts: row.ts, body, file: file || null, username: fu.username, pfp: fu.pfp, color: fu.color, owner: isOwner(fu), staff: isStaff(fu), uid: fu.id });
       wss.clients.forEach(c2 => c2.readyState === 1 && ids.has(c2.uid) && c2.send(out));
     } catch (e) { console.error(e); }
   });
@@ -240,6 +295,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS muted BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS staff BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS created TIMESTAMPTZ DEFAULT now();
 ALTER TABLE servers ADD COLUMN IF NOT EXISTS dm BOOLEAN DEFAULT false;
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS banner TEXT;
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS descr TEXT DEFAULT '';
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT false;
 CREATE UNIQUE INDEX IF NOT EXISTS users_lu ON users(lower(username));`);
   server.listen(process.env.PORT || 3000, () => console.log('D-Chat running'));
 })();
