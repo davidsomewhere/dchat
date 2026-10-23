@@ -74,6 +74,23 @@ input:focus,textarea:focus{outline:0;border-color:var(--ac)}
 .mb{display:none}
 @media(max-width:860px){.app{grid-template-columns:64px minmax(0,1fr)}.side,.mem{display:none;position:fixed;z-index:10;top:10px;bottom:10px;width:min(280px,80vw)}.side{left:84px}.mem{right:10px}
 body.nav .side,body.mem .mem{display:flex}.mb{display:block}}
+.sv{background-size:cover}
+.sv.on{outline:3px solid var(--ac);outline-offset:2px}
+.badge{font-style:normal;background:#ff4d5e;color:#fff;font:700 10px Onest,sans-serif;min-width:18px;height:18px;border-radius:9px;display:grid;place-items:center;padding:0 5px;margin-left:auto}
+.rail .sv{position:relative}.rail .badge{position:absolute;right:-5px;top:-5px;margin:0}
+.shead{min-height:92px;padding:14px 12px 10px;display:flex;align-items:flex-end;gap:10px;background:var(--p2) center/cover;font-family:Unbounded,sans-serif;font-weight:600}
+.shead.has{color:#fff;text-shadow:0 1px 6px #000c}
+.shead .t{flex:1;min-width:0;display:grid;gap:2px}.shead .t b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.shead small{font:400 11px Onest,sans-serif;opacity:.9}.shead button{padding:5px 9px}
+.bub code{background:#0003;padding:1px 6px;border-radius:6px;font-size:13px}.bub a{color:inherit;text-decoration:underline}
+.men{background:color-mix(in srgb,var(--ac) 30%,transparent);border-radius:6px;padding:0 3px}.edt{opacity:.55;font-size:11px}
+.bar{position:relative}
+#emo{position:absolute;bottom:calc(100% + 4px);left:14px;background:var(--p2);border-radius:18px;padding:10px;display:grid;grid-template-columns:repeat(8,1fr);gap:2px;z-index:6;box-shadow:0 10px 30px #0006}
+#emo button{background:none;padding:4px;font-size:20px}
+.lb{position:fixed;inset:0;background:#000d;display:grid;place-items:center;z-index:40;cursor:zoom-out}.lb img{max-width:94vw;max-height:92vh;border-radius:16px}
+.sec{font-size:13px;color:var(--mu);font-weight:700;margin-top:8px!important}
+.ico{width:64px;height:64px;border-radius:20px;background:var(--p2) center/cover;display:grid;place-items:center;font:600 18px Unbounded,sans-serif;flex:none}
+.rowi{display:flex;gap:8px;align-items:center}.rowi b{flex:1;min-width:0}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -84,7 +101,10 @@ const $=s=>document.querySelector(s),root=$('#root');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl=u=>/^\/media\/[a-f0-9]+$/.test(u||'')?u:'';
 const ACC=['lime','pink','sky','orange','violet'];
-let T=localStorage.getItem('t'),U,S=[],DM=[],sid,cid,view='srv',ws,MEM=[];
+let T=localStorage.getItem('t'),U,S=[],DM=[],sid,cid,view='srv',ws,MEM=[],UN={};
+const bdg=n=>n?`<i class="badge">${n>9?'9+':n}</i>`:'';
+const EMO='😀 😂 🥹 😍 😎 🤔 😭 😡 👍 👎 🙏 🔥 ✨ 💀 🎉 ❤️ 💯 👀 🤝 😴 🥳 😅 🫡 🤯'.split(' ');
+const fmt=s=>esc(s).replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>').replace(/(^|[\s(])\*([^*\n]+)\*/g,'$1<i>$2</i>').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>').replace(/@(\w{3,20})/g,'<span class="men">@$1</span>');
 const isAdm=()=>U&&(U.owner||U.staff);
 function theme(t){const [m,a]=(t||'').split('|');document.documentElement.dataset.mode=m==='light'?'light':'dark';document.documentElement.dataset.accent=ACC.includes(a)?a:'lime'}
 const curTheme=()=>document.documentElement.dataset.mode+'|'+document.documentElement.dataset.accent;
@@ -118,9 +138,9 @@ async function boot(){
   theme(U.theme);localStorage.setItem('th',curTheme());
   view=S.length?'srv':'dm';sid=S[0]?.id;cid=S[0]?.channels[0]?.id;
   if(!S.length&&DM.length){sid=DM[0].sid;cid=DM[0].cid}
-  root.innerHTML=`<div class="app"><nav class="rail" id="rail"></nav><aside class="side"><h2 id="sn"></h2><div class="inv" id="inv"></div><div class="list" id="list"></div><div class="dock" id="dock"></div></aside>
+  root.innerHTML=`<div class="app"><nav class="rail" id="rail"></nav><aside class="side"><div class="shead" id="sn"></div><div class="inv" id="inv"></div><div class="list" id="list"></div><div class="dock" id="dock"></div></aside>
   <main class="main"><div class="top"><button class="mb" data-a="nav">☰</button><span id="cn"></span><span class="sp"></span><span id="tools"></span><button class="mb" data-a="mem">👥</button></div>
-  <div class="msgs" id="msgs"></div><form class="bar" id="bar"><button type="button" data-a="att" title="Attach image, video or audio">＋</button>
+  <div class="msgs" id="msgs"></div><form class="bar" id="bar"><button type="button" data-a="att" title="Attach image, video or audio">＋</button><button type="button" data-a="emo" title="Emoji">😊</button>
   <input id="txt" placeholder="Message" autocomplete="off" maxlength="2000"><input type="file" id="file" hidden accept="image/*,video/*,audio/*"><button class="go">Send</button></form></main>
   <aside class="mem" id="mem"></aside></div>`;
   $('#bar').onsubmit=e=>{e.preventDefault();const v=$('#txt').value.trim();if(v&&cid){sendRaw(v);$('#txt').value=''}};
@@ -128,24 +148,25 @@ async function boot(){
   render();connect();
 }
 const curS=()=>S.find(x=>x.id===sid),curDM=()=>DM.find(x=>x.cid===cid);
-function render(){
-  $('#rail').innerHTML=`<button class="sv ${view==='dm'?'on':''}" data-a="home" title="Direct messages">DM</button><i class="sep"></i>`+
-    S.map(x=>`<button class="sv ${view==='srv'&&x.id===sid?'on':''}" data-a="srv" data-v="${x.id}" title="${esc(x.name)}">${esc(x.name.slice(0,2))}</button>`).join('')+
+function render(skip){
+  $('#rail').innerHTML=`<button class="sv ${view==='dm'?'on':''}" data-a="home" title="Direct messages">DM${bdg(DM.reduce((a,d)=>a+(UN[d.cid]||0),0))}</button><i class="sep"></i>`+
+    S.map(x=>`<button class="sv ${view==='srv'&&x.id===sid?'on':''}" data-a="srv" data-v="${x.id}" title="${esc(x.name)}" ${safeUrl(x.icon)?`style="background:center/cover url(${safeUrl(x.icon)});color:transparent"`:''}>${esc(x.name.slice(0,2))}${bdg(x.channels.reduce((a,c)=>a+(UN[c.id]||0),0))}</button>`).join('')+
     `<button class="sv" data-a="add" title="Create or join a server">＋</button>`+(isAdm()?`<button class="sv" data-a="adm" title="Admin panel">🛡</button>`:'');
   $('#dock').innerHTML=av(U,38)+`<div class="who" data-a="me"><b>${esc(U.username)}</b><small class="mu">Edit profile</small></div><button data-a="mode" title="Dark / light mode">${document.documentElement.dataset.mode==='dark'?'☀':'☾'}</button>`;
   if(view==='dm'){
-    $('#sn').textContent='Direct messages';$('#inv').textContent='';
-    $('#list').innerHTML=DM.map(d=>`<button class="item ${d.cid===cid?'on':''}" data-a="dm" data-v="${d.cid}">${av(d.user,32,false)}<span>${esc(d.user.username)}</span>${tag(d.user)}</button>`).join('')+
+    $('#sn').className='shead';$('#sn').style.backgroundImage='';$('#sn').innerHTML='<div class="t"><b>Direct messages</b></div>';$('#inv').textContent='';
+    $('#list').innerHTML=DM.map(d=>`<button class="item ${d.cid===cid?'on':''}" data-a="dm" data-v="${d.cid}">${av(d.user,32,false)}<span>${esc(d.user.username)}</span>${tag(d.user)}${bdg(UN[d.cid])}</button>`).join('')+
       `<button class="item" data-a="newdm">＋ New message</button>`+(DM.length?'':'<p class="mu" style="padding:8px">No DMs yet. Tap anyone\'s avatar and hit Message.</p>');
-    $('#cn').textContent=curDM()?'@'+curDM().user.username:'Direct messages';
+    $('#cn').innerHTML=curDM()?av(curDM().user,30)+' '+esc(curDM().user.username)+' '+tag(curDM().user):'Direct messages';
   }else{
-    const s=curS();$('#sn').textContent=s?s.name:'No servers yet';$('#inv').textContent=s?'Invite code: '+s.invite+' (tap to copy)':'';
+    const s=curS(),bn=safeUrl(s?.banner),ic=safeUrl(s?.icon),hd=$('#sn');hd.className='shead'+(bn?' has':'');hd.style.backgroundImage=bn?`url(${bn})`:'';
+    hd.innerHTML=s?`${ic?`<div class="ico" style="width:44px;height:44px;border-radius:14px;background-image:url(${ic})"></div>`:''}<div class="t"><b>${esc(s.name)}</b>${s.descr?`<small>${esc(s.descr)}</small>`:''}</div><button data-a="settings" title="Server settings">⚙</button>`:'<div class="t"><b>No servers yet</b></div>';$('#inv').textContent=s?'Invite code: '+s.invite+' (tap to copy)':'';
     $('#inv').dataset.a='copy';
-    $('#list').innerHTML=s?s.channels.map(c=>`<button class="item ${c.id===cid?'on':''}" data-a="ch" data-v="${c.id}"># ${esc(c.name)}</button>`).join('')+(s.owner===U.id||isAdm()?`<button class="item" data-a="newch">＋ New channel</button>`:''):'';
+    $('#list').innerHTML=s?s.channels.map(c=>`<button class="item ${c.id===cid?'on':''}" data-a="ch" data-v="${c.id}"># ${esc(c.name)}${bdg(UN[c.id])}</button>`).join('')+(s.owner===U.id||isAdm()?`<button class="item" data-a="newch">＋ New channel</button>`:''):'';
     $('#cn').textContent=s?'# '+(s.channels.find(c=>c.id===cid)?.name||''):'Welcome';
   }
   $('#tools').innerHTML=isAdm()&&cid?'<button data-a="clear" title="Delete every message in this channel">🧹</button>':'';
-  loadMsgs();loadMembers();
+  if(!skip){loadMsgs();loadMembers()}
 }
 async function loadMembers(){
   if(!sid)return($('#mem').innerHTML='');
@@ -161,8 +182,8 @@ async function loadMsgs(){
 function addMsg(m){
   const [url,mime]=(m.file||'').split('|'),u=safeUrl(url);
   const media=!u?'':mime.startsWith('video')?`<video src="${u}" controls preload="metadata"></video>`:mime.startsWith('audio')?`<audio src="${u}" controls></audio>`:`<img src="${u}" loading="lazy" alt="">`;
-  const d=document.createElement('div');d.className='m'+(m.uid===U.id?' me':'');d.dataset.id=m.id;
-  d.innerHTML=av(m,40)+`<div class="bub"><div class="hd"><b data-a="prof" data-v="${m.uid}" style="color:${esc(m.color)}">${esc(m.username)}</b>${tag(m)}<small>${new Date(m.ts).toLocaleString([],{dateStyle:'short',timeStyle:'short'})}</small>${m.uid===U.id||isAdm()?`<button class="x" data-a="del" data-v="${m.id}" title="Delete">✕</button>`:''}</div>${m.body?`<p>${esc(m.body)}</p>`:''}${media}</div>`;
+  const d=document.createElement('div');d.className='m'+(m.uid===U.id?' me':'');d.dataset.id=m.id;d.dataset.body=m.body||'';
+  d.innerHTML=av(m,40)+`<div class="bub"><div class="hd"><b data-a="prof" data-v="${m.uid}" style="color:${esc(m.color)}">${esc(m.username)}</b>${tag(m)}<small>${new Date(m.ts).toLocaleString([],{dateStyle:'short',timeStyle:'short'})}</small>${m.uid===U.id&&m.body?`<button class="x" data-a="edit" data-v="${m.id}" title="Edit">✎</button>`:''}${m.uid===U.id||isAdm()?`<button class="x" data-a="del" data-v="${m.id}" title="Delete">✕</button>`:''}</div>${m.body?`<p>${fmt(m.body)}${m.edited?' <span class="edt">(edited)</span>':''}</p>`:''}${media}</div>`;
   const box=$('#msgs'),stick=box.scrollHeight-box.scrollTop-box.clientHeight<140;box.appendChild(d);if(stick)box.scrollTop=box.scrollHeight;
 }
 function connect(){
@@ -171,18 +192,22 @@ function connect(){
   ws.onmessage=async e=>{const m=JSON.parse(e.data);
     if(m.announce)return toast('📣 '+m.announce.by+': '+m.announce.text);
     if(m.err)return toast(m.err);
+    if(m.refresh){S=await api('servers');const s=curS();if(view==='srv'&&!s){const f=S[0];return go('srv',f?.id,f?.channels[0]?.id)}if(view==='srv'&&!s.channels.some(c=>c.id===cid))return go('srv',sid,s.channels[0].id);return render(true)}
+    if(m.edit){const el=$(`#msgs [data-id="${m.edit.id}"]`);if(el){el.dataset.body=m.edit.body;const p=el.querySelector('.bub p');if(p)p.innerHTML=fmt(m.edit.body)+' <span class="edt">(edited)</span>'}return}
     if(m.del){$(`#msgs [data-id="${m.del}"]`)?.remove();return}
     if(m.clear){if(m.clear===cid)$('#msgs').innerHTML='';return}
     if(m.cid===cid)return addMsg(m);
-    if(!S.some(s=>s.channels.some(c=>c.id===m.cid))&&!DM.some(d=>d.cid===m.cid)){DM=await api('dms');render()}
-    if(m.uid!==U.id)toast('💬 '+m.username+': '+(m.body||'sent a file').slice(0,60))};
+    if(!S.some(s=>s.channels.some(c=>c.id===m.cid))&&!DM.some(d=>d.cid===m.cid)){DM=await api('dms');render(true)}
+    if(m.uid!==U.id){UN[m.cid]=(UN[m.cid]||0)+1;render(true);toast('💬 '+m.username+': '+(m.body||'sent a file').slice(0,60))}};
   ws.onclose=()=>setTimeout(()=>T&&connect(),2000);   // Render restarts: reconnect
 }
 function sendRaw(body,file){if(!ws||ws.readyState!==1)return toast('Reconnecting… try again in a moment.');ws.send(JSON.stringify({cid,body,file}))}
-const go=(v,s,c)=>{view=v;sid=s;cid=c;document.body.classList.remove('nav','mem');render()};
+const go=(v,s,c)=>{view=v;sid=s;cid=c;document.body.classList.remove('nav','mem');delete UN[c];render()};
 async function openDM(body){try{const d=await api('dm','POST',body);if(!DM.some(x=>x.cid===d.cid))DM.unshift(d);go('dm',d.sid,d.cid)}catch(e){toast(e.message)}}
 
 const ACTS={
+  settings:()=>serverSettings(),emo:()=>toggleEmoji(),
+  edit:v=>{const n=prompt('Edit message',$(`#msgs [data-id="${v}"]`)?.dataset.body||'');if(n&&n.trim())api('messages/'+v,'PATCH',{body:n}).catch(e=>toast(e.message))},
   home:()=>go('dm',DM[0]?.sid,DM[0]?.cid),
   srv:v=>{const s=S.find(x=>x.id==v);go('srv',s.id,s.channels[0]?.id)},
   ch:v=>go('srv',sid,+v), dm:v=>{const d=DM.find(x=>x.cid==v);go('dm',d.sid,d.cid)},
@@ -195,7 +220,9 @@ const ACTS={
   clear:()=>confirm('Delete ALL messages in this channel?')&&api(`admin/channels/${cid}/messages`,'DELETE').catch(e=>toast(e.message)),
   mode:()=>setTheme(document.documentElement.dataset.mode==='dark'?'light':'dark',document.documentElement.dataset.accent)
 };
-document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(t&&U)ACTS[t.dataset.a]?.(t.dataset.v)});
+document.addEventListener('click',e=>{
+  if(e.target.matches('.bub img')){const l=document.createElement('div');l.className='lb';l.innerHTML=`<img src="${e.target.src}" alt="">`;l.onclick=()=>l.remove();document.body.appendChild(l);return}
+  if(!e.target.closest('#emo,[data-a=emo]'))$('#emo')?.remove();const t=e.target.closest('[data-a]');if(t&&U)ACTS[t.dataset.a]?.(t.dataset.v)});
 async function setTheme(m,a){theme(m+'|'+a);localStorage.setItem('th',curTheme());try{U=await api('me','PATCH',{theme:curTheme()})}catch{}render()}
 
 function serverModal(){
@@ -228,10 +255,48 @@ function editProfile(){
   m.querySelectorAll('[data-ac]').forEach(x=>{x.dataset.accent=x.dataset.ac;x.style.background='';x.style.cssText='background:'+({lime:'#b8f23c',pink:'#ff5c9e',sky:'#4cc9ff',orange:'#ff9a3c',violet:'#a78bff'})[x.dataset.ac];x.onclick=()=>theme(document.documentElement.dataset.mode+'|'+x.dataset.ac)});
   b('#dk').onclick=()=>theme('dark|'+document.documentElement.dataset.accent);b('#lt').onclick=()=>theme('light|'+document.documentElement.dataset.accent);
   b('#up').onclick=()=>{tgt='pfp';b('#pf').click()};b('#ub').onclick=()=>{tgt='banner';b('#pf').click()};
-  b('#pf').onchange=async e=>{try{const j=await upload(e.target.files[0]);if(tgt==='pfp')pfp=j.url;else{banner=j.url;b('#pb').style.backgroundImage=`url(${j.url})`}}catch(x){b('#pe').textContent=x.message}};
+  b('#pf').onchange=async e=>{try{const j=await upload(e.target.files[0]);if(tgt==='pfp'){pfp=j.url;const a=b('.pf .av');a.style.background='center/cover url('+j.url+')';a.textContent=''}else{banner=j.url;b('#pb').style.backgroundImage=`url(${j.url})`}}catch(x){b('#pe').textContent=x.message}};
   b('#sv').onclick=async()=>{try{U=await api('me','PATCH',{pfp,banner,bio:b('#bio').value,color:b('#col').value,theme:curTheme()});localStorage.setItem('th',curTheme());m.remove();render()}catch(e){b('#pe').textContent=e.message}};
   b('#lo').onclick=()=>{localStorage.removeItem('t');T=null;if(ws)ws.onclose=null,ws.close();location.reload()};
   m.onclick=e=>{if(e.target===m){theme(U.theme);m.remove()}};
+}
+function toggleEmoji(){
+  const old=$('#emo');if(old)return old.remove();const e=document.createElement('div');e.id='emo';
+  e.innerHTML=EMO.map(x=>`<button type="button">${x}</button>`).join('');
+  e.onclick=ev=>{if(ev.target.tagName==='BUTTON'){const t=$('#txt');t.value+=ev.target.textContent;t.focus()}ev.stopPropagation()};$('#bar').appendChild(e);
+}
+async function serverSettings(){
+  const s=curS();if(!s)return;const can=s.owner===U.id||isAdm();
+  const mem=await api(`servers/${s.id}/members`).catch(()=>[]);let icon=s.icon,banner=s.banner,tgt;
+  const chRows=s.channels.map(c=>`<div class="rowi ar"><b># ${esc(c.name)}</b>${can?`<button data-r="${c.id}">Rename</button><button class="bad" data-d="${c.id}">Delete</button>`:''}</div>`).join('');
+  const mRows=mem.map(u=>`<div class="rowi ar">${av(u,30,false)}<b>${esc(u.username)} ${u.id===s.owner?'<span class="own">OWNER</span>':''}</b>${can&&u.id!==s.owner?`<button data-k="${u.id}">Kick</button><button data-t="${u.id}">Make owner</button>`:''}</div>`).join('');
+  const m=modal(`<div class="ban" id="sb" style="${safeUrl(banner)?`background-image:url(${safeUrl(banner)})`:''}"></div>
+   <div class="pf"><div class="ico" id="si" style="${safeUrl(icon)?`background-image:url(${safeUrl(icon)});`:''}border:5px solid var(--p1);width:88px;height:88px;border-radius:28px">${safeUrl(icon)?'':esc(s.name.slice(0,2))}</div><h2 style="font-size:19px">${esc(s.name)}</h2></div>
+   ${can?`<div class="row"><button id="ui">Change icon</button><button id="ub">Change banner</button><button id="ri">Remove icon</button></div><input type="file" id="uf" hidden accept="image/*">
+   <input id="nm" maxlength="40" value="${esc(s.name)}" placeholder="Server name"><textarea id="ds" rows="2" maxlength="200" placeholder="What is this server about?">${esc(s.descr||'')}</textarea>
+   <div class="err" id="er"></div><button class="go" id="sv">Save changes</button>`:`<p>${esc(s.descr)||'<span class="mu">No description.</span>'}</p>`}
+   <div class="sec">Invite code</div><div class="row"><b style="font-family:Unbounded,sans-serif">${esc(s.invite)}</b><button id="cp">Copy</button>${can?'<button id="ni">New code</button>':''}</div>
+   <div class="sec">Channels</div><div>${chRows}</div>${can?'<button id="ac">＋ Add channel</button>':''}
+   <div class="sec">Members — ${mem.length}</div><div>${mRows}</div>
+   <div class="sec">Danger zone</div><div class="row">${can?'<button class="bad" id="dl">Delete server</button>':''}${s.owner!==U.id?'<button class="bad" id="lv">Leave server</button>':''}</div>`);
+  const b=x=>m.querySelector(x),after=async()=>{S=await api('servers');m.remove();render(true);serverSettings()};
+  const run=f=>async()=>{try{await f()}catch(e){const er=b('#er');if(er)er.textContent=e.message;else toast(e.message)}};
+  const first=()=>{const f=S[0];go('srv',f?.id,f?.channels[0]?.id)};
+  b('#cp').onclick=()=>{navigator.clipboard?.writeText(s.invite);toast('Invite code copied')};
+  if(can){
+    b('#ui').onclick=()=>{tgt='icon';b('#uf').click()};b('#ub').onclick=()=>{tgt='banner';b('#uf').click()};
+    b('#ri').onclick=()=>{icon='';b('#si').style.backgroundImage='none';b('#si').textContent=s.name.slice(0,2)};
+    b('#uf').onchange=run(async()=>{const j=await upload(b('#uf').files[0]);if(tgt==='icon'){icon=j.url;b('#si').style.backgroundImage=`url(${j.url})`;b('#si').textContent=''}else{banner=j.url;b('#sb').style.backgroundImage=`url(${j.url})`}});
+    b('#sv').onclick=run(async()=>{S=await api('servers/'+s.id,'PATCH',{name:b('#nm').value,descr:b('#ds').value,icon,banner});m.remove();render(true);toast('Server updated')});
+    b('#ni').onclick=run(async()=>{await api(`servers/${s.id}/invite`,'POST');await after()});
+    b('#ac').onclick=run(async()=>{const n=prompt('Channel name');if(n){await api(`servers/${s.id}/channels`,'POST',{name:n});await after()}});
+    m.querySelectorAll('[data-r]').forEach(x=>x.onclick=run(async()=>{const n=prompt('New channel name');if(n){await api('channels/'+x.dataset.r,'PATCH',{name:n});await after()}}));
+    m.querySelectorAll('[data-d]').forEach(x=>x.onclick=run(async()=>{if(confirm('Delete this channel and its messages?')){await api('channels/'+x.dataset.d,'DELETE');await after()}}));
+    m.querySelectorAll('[data-k]').forEach(x=>x.onclick=run(async()=>{if(confirm('Kick this member?')){await api(`servers/${s.id}/members/${x.dataset.k}`,'DELETE');await after()}}));
+    m.querySelectorAll('[data-t]').forEach(x=>x.onclick=run(async()=>{if(confirm('Give this member ownership of the server?')){await api(`servers/${s.id}/transfer`,'POST',{uid:+x.dataset.t});await after()}}));
+    b('#dl').onclick=run(async()=>{if(confirm('Delete "'+s.name+'" and everything in it? This cannot be undone.')){await api('servers/'+s.id,'DELETE');m.remove();S=await api('servers');first()}});
+  }
+  if(b('#lv'))b('#lv').onclick=run(async()=>{if(confirm('Leave this server?')){S=await api(`servers/${s.id}/leave`,'POST');m.remove();first()}});
 }
 async function admin(){
   const m=modal('<h2 style="margin-top:22px">Admin panel</h2><div id="ab">Loading…</div>');m.firstChild.style.width='min(680px,100%)';
