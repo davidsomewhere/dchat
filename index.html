@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D-Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;600;700&family=Bowlby+One&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme=zine]{--bg:#f2ead8;--p1:#fffaf0;--p2:#e9dfc8;--tx:#1b1a17;--mu:#6d6556;--ac:#ff4f2b;--ln:#1b1a17;--hi:#ffd83b}
+[data-theme=night]{--bg:#15131a;--p1:#1f1c27;--p2:#2b2735;--tx:#f4efe6;--mu:#9c94ab;--ac:#ff5fa2;--ln:#f4efe6;--hi:#ffd83b}
+[data-theme=bubble]{--bg:#ffc9de;--p1:#fff0f6;--p2:#ffdcea;--tx:#2a1030;--mu:#8a5b7d;--ac:#7a3cff;--ln:#2a1030;--hi:#ffe14d}
+[data-theme=cobalt]{--bg:#2342ff;--p1:#f4f1ff;--p2:#dcd6ff;--tx:#0d0f3a;--mu:#5a5d95;--ac:#ff6a3d;--ln:#0d0f3a;--hi:#c9ff3d}
+[data-theme=slime]{--bg:#c9ff3d;--p1:#fbffe9;--p2:#e4f7a6;--tx:#10200a;--mu:#55704a;--ac:#e0198f;--ln:#10200a;--hi:#ffd83b}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font-family:'Familjen Grotesk',system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:16px;
+ background-image:radial-gradient(color-mix(in srgb,var(--ln) 16%,transparent) 1px,transparent 1.3px);background-size:13px 13px}
+h1,h2,h3,.own,.sv{font-family:'Bowlby One',Impact,sans-serif;font-weight:400}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:2px solid var(--ln);border-radius:6px;padding:7px 14px;background:var(--p1);box-shadow:3px 3px 0 var(--ln);font-weight:600;transition:transform .08s,box-shadow .08s}
+button:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ln)}
+button:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ln)}
+button.go{background:var(--ac);color:#fff}
+input,textarea,select{background:var(--p1);border:2px solid var(--ln);border-radius:6px;padding:10px 12px;width:100%}
+:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.auth{height:100%;display:grid;place-items:center;padding:20px}
+.auth form{width:min(400px,100%);display:grid;gap:12px;background:var(--p1);padding:28px;border:3px solid var(--ln);box-shadow:8px 8px 0 var(--ln);transform:rotate(-1.2deg)}
+.auth h1{font-size:64px;line-height:.9;color:var(--ac);text-shadow:3px 3px 0 var(--ln);margin-top:-52px;transform:rotate(2deg)}
+.auth h1 b{color:var(--hi);-webkit-text-stroke:2px var(--ln)}
+.sub{color:var(--mu);margin-top:-4px}
+.err{color:#d6002a;min-height:18px;font-size:14px;font-weight:600}
+.app{height:100%;display:grid;grid-template-columns:78px 240px 1fr 220px}
+.rail{background:var(--ln);padding:12px 0;display:flex;flex-direction:column;gap:14px;align-items:center;overflow:auto}
+.sv{width:50px;height:50px;border-radius:4px;background:var(--hi);color:#111;border-color:#111;box-shadow:3px 3px 0 var(--ac);display:grid;place-items:center;padding:0;font-size:16px;flex:none;transform:rotate(-4deg)}
+.rail .sv:nth-child(even){transform:rotate(3deg)}
+.sv.on{background:var(--ac);color:#fff;transform:rotate(0)!important;box-shadow:3px 3px 0 var(--hi)}
+.side{background:var(--p1);border-right:3px solid var(--ln);display:flex;flex-direction:column;min-height:0}
+.side h2{padding:16px;font-size:19px;border-bottom:3px solid var(--ln);background:var(--hi);color:#111}
+.chs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.ch{text-align:left;box-shadow:none;border-color:transparent;background:none;padding:6px 10px}
+.ch.on{background:var(--ln);color:var(--bg);border-radius:2px 14px 2px 14px}
+.ch:hover{box-shadow:none;transform:translateX(3px)}
+.me{display:flex;gap:10px;align-items:center;padding:10px;border-top:3px solid var(--ln);cursor:pointer;background:var(--p2)}
+.av{width:38px;height:38px;border:2px solid var(--ln);border-radius:35% 65% 55% 45%;background:var(--p2) center/cover;flex:none;display:grid;place-items:center;font-weight:800}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{padding:12px 18px;border-bottom:3px solid var(--ln);font-weight:700;font-size:18px;display:flex;align-items:center;gap:12px;background:var(--p1)}
+.top #inv{margin-left:auto;background:var(--hi);color:#111;border:2px dashed #111;padding:2px 10px;font-size:13px}
+.mb{display:none;padding:4px 10px}
+.msgs{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px}
+.m{display:flex;gap:12px;align-items:flex-start;max-width:640px}
+.m>div{background:var(--p1);border:2px solid var(--ln);box-shadow:4px 4px 0 var(--ln);padding:8px 14px;min-width:0}
+.m:nth-child(3n+1)>div{border-radius:2px 18px 2px 2px}.m:nth-child(3n+2)>div{border-radius:2px}.m:nth-child(3n)>div{border-radius:18px 2px 2px 2px}
+.m .n{font-weight:700}.m small{color:var(--mu);margin-left:8px;font-size:12px}
+.m p{white-space:pre-wrap;word-break:break-word}
+.m img,.m video{max-width:min(420px,100%);max-height:300px;border:2px solid var(--ln);margin-top:6px;display:block}
+.x{padding:0 7px;box-shadow:none;opacity:.4;align-self:center}.m:hover .x{opacity:1}
+.own{background:var(--hi);color:#111;border:2px solid #111;font-size:10px;padding:1px 6px;transform:rotate(-5deg);display:inline-block;margin-left:8px;box-shadow:2px 2px 0 #111;vertical-align:2px}
+.bar{display:flex;gap:10px;padding:14px 18px;border-top:3px solid var(--ln);background:var(--p1)}
+.mem{background:var(--p1);border-left:3px solid var(--ln);padding:14px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.mem div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.modal{position:fixed;inset:0;background:color-mix(in srgb,var(--ln) 55%,transparent);display:grid;place-items:center;padding:16px;z-index:9}
+.card{background:var(--p1);border:3px solid var(--ln);box-shadow:8px 8px 0 var(--ln);width:min(440px,100%);max-height:92vh;overflow:auto;display:grid;gap:12px;padding-bottom:20px;transform:rotate(.5deg)}
+.card>*:not(.ban){margin:0 20px}
+.ban{height:130px;background:var(--ac) center/cover;border-bottom:3px solid var(--ln)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.ar{align-items:center;border-bottom:2px dotted var(--ln);padding-bottom:8px}.ar b{flex:1}
+.hide{display:none!important}
+@media(max-width:800px){.app{grid-template-columns:64px 1fr}.mem{display:none}.mb{display:block}.side{display:none;position:fixed;left:64px;top:0;bottom:0;width:240px;z-index:5}body.nav .side{display:flex}.auth h1{font-size:52px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const $=s=>document.querySelector(s), root=$('#root');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl=u=>/^\/media\/[a-f0-9]+$/.test(u||'')?u:'';
+let T=localStorage.getItem('t'),U,S=[],sid,cid,ws;
+const THEMES=['zine','night','bubble','cobalt','slime'];
+
+async function api(p,m='GET',b){
+  const r=await fetch('/api/'+p,{method:m,headers:{'content-type':'application/json','x-token':T||''},body:b&&JSON.stringify(b)});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;
+}
+async function upload(f){
+  if(f.size>25e6)throw new Error('Files must be under 25 MB.');
+  const r=await fetch('/api/upload',{method:'POST',headers:{'x-token':T,'content-type':f.type},body:f});
+  const j=await r.json();if(!r.ok)throw new Error(j.error);return j;
+}
+const avatar=(u,s=36)=>`<div class="av" style="width:${s}px;height:${s}px;${safeUrl(u.pfp)?`background-image:url(${safeUrl(u.pfp)})`:`background:${esc(u.color)};color:#111`}">${safeUrl(u.pfp)?'':esc(u.username[0].toUpperCase())}</div>`;
+
+const tag=u=>u.owner?'<span class="own">👑 OWNER</span>':'';
+function authView(){
+  root.innerHTML=`<div class="auth"><form id="f"><h1>D<b>-</b>CHAT</h1><p class="sub">Your servers. Your mess.</p>
+  <input id="u" placeholder="Username" autocomplete="username" required>
+  <input id="p" type="password" placeholder="Password (6+ characters)" autocomplete="current-password" required>
+  <div class="err" id="e"></div>
+  <button class="go" data-m="login">Log in</button><button type="button" id="reg">Create account</button></form></div>`;
+  const go=async m=>{try{const j=await api(m,'POST',{username:$('#u').value,password:$('#p').value});T=j.token;localStorage.setItem('t',T);boot()}catch(e){$('#e').textContent=e.message}};
+  $('#f').onsubmit=e=>{e.preventDefault();go('login')};$('#reg').onclick=()=>go('register');
+}
+
+async function boot(){
+  try{U=await api('me');S=await api('servers')}catch{localStorage.removeItem('t');T=null;return authView()}
+  document.documentElement.dataset.theme=U.theme;
+  sid=S[0]?.id;cid=S[0]?.channels[0]?.id;
+  root.innerHTML=`<div class="app"><div class="rail" id="rail"></div><div class="side"><h2 id="sn"></h2><div class="chs" id="chs"></div>
+  <div class="me" id="me"></div></div><div class="main"><div class="top"><button type="button" class="mb" id="mb">☰</button><span id="cn"></span><span id="inv" style="color:var(--mu);font-size:13px"></span></div>
+  <div class="msgs" id="msgs"></div><form class="bar" id="bar"><button type="button" id="att" title="Attach image or video">+</button>
+  <input id="txt" placeholder="Message" autocomplete="off" maxlength="2000"><input type="file" id="file" hidden accept="image/*,video/*,audio/*"><button class="go">Send</button></form></div>
+  <div class="mem" id="mem"></div></div>`;
+  $('#att').onclick=()=>$('#file').click();
+  $('#bar').onsubmit=send;
+  $('#file').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('#att').textContent='…';
+    try{const j=await upload(f);sendRaw('',j.url+'|'+j.mime)}catch(x){alert(x.message)}$('#att').textContent='+';e.target.value=''};
+  $('#me').onclick=profile;$('#mb').onclick=()=>document.body.classList.toggle('nav');
+  render();connect();
+}
+function render(){
+  const s=S.find(x=>x.id===sid);
+  $('#rail').innerHTML=S.map(x=>`<button class="sv ${x.id===sid?'on':''}" data-s="${x.id}" title="${esc(x.name)}">${esc(x.name.slice(0,2))}</button>`).join('')+
+    `<button class="sv" id="add" title="Create or join a server">+</button>`+(U.owner?`<button class="sv" id="admb" title="Admin panel">⚙</button>`:'');
+  $('#rail').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{sid=+b.dataset.s;cid=S.find(x=>x.id===sid).channels[0]?.id;render()});
+  $('#add').onclick=serverModal;if($('#admb'))$('#admb').onclick=admin;
+  $('#me').innerHTML=avatar(U)+`<div><b>${esc(U.username)}</b><br><small style="color:var(--mu)">Edit profile</small></div>`;
+  if(!s){$('#sn').textContent='No servers yet';$('#chs').innerHTML='';$('#msgs').innerHTML='<p style="color:var(--mu)">Create a server or join one with an invite code using the + button.</p>';$('#mem').innerHTML='';return}
+  $('#sn').textContent=s.name;$('#inv').textContent='Invite: '+s.invite;
+  $('#chs').innerHTML=s.channels.map(c=>`<button class="ch ${c.id===cid?'on':''}" data-c="${c.id}"># ${esc(c.name)}</button>`).join('')+
+    (s.owner===U.id?`<button class="ch" id="newch">+ New channel</button>`:'');
+  $('#chs').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{cid=+b.dataset.c;document.body.classList.remove('nav');render()});
+  const nc=$('#newch');if(nc)nc.onclick=async()=>{const n=prompt('Channel name');if(n){try{S=await api(`servers/${sid}/channels`,'POST',{name:n});render()}catch(e){alert(e.message)}}};
+  $('#cn').textContent='# '+(s.channels.find(c=>c.id===cid)?.name||'');
+  loadMsgs();
+  api(`servers/${sid}/members`).then(ms=>$('#mem').innerHTML='<b>Members — '+ms.length+'</b>'+ms.map(m=>`<div>${avatar(m,30)}<span style="color:${esc(m.color)}">${esc(m.username)}</span>${tag(m)}</div>`).join(''));
+}
+async function loadMsgs(){
+  if(!cid)return;const want=cid;
+  const ms=await api(`channels/${cid}/messages`).catch(()=>[]);if(want!==cid)return;
+  $('#msgs').innerHTML='';ms.forEach(addMsg);
+}
+function addMsg(m){
+  const [url,mime]=(m.file||'').split('|'),u=safeUrl(url);
+  const media=!u?'':mime.startsWith('video')?`<video src="${u}" controls preload="metadata"></video>`:mime.startsWith('audio')?`<audio src="${u}" controls></audio>`:`<img src="${u}" loading="lazy" alt="">`;
+  const d=document.createElement('div');d.className='m';
+  d.innerHTML=avatar(m,40)+`<div><span class="n" style="color:${esc(m.color)}">${esc(m.username)}</span>${tag(m)}<small>${new Date(m.ts).toLocaleString([], {dateStyle:'short',timeStyle:'short'})}</small>${m.body?`<p>${esc(m.body)}</p>`:''}${media}</div>${(U.owner||m.username===U.username)?'<button class="x" title="Delete message">✕</button>':''}`;
+  d.dataset.id=m.id;const x=d.querySelector('.x');if(x)x.onclick=()=>api('messages/'+m.id,'DELETE').catch(e=>alert(e.message));
+  const box=$('#msgs'),stick=box.scrollHeight-box.scrollTop-box.clientHeight<120;
+  box.appendChild(d);if(stick)box.scrollTop=box.scrollHeight;
+}
+function connect(){
+  if(ws)ws.onclose=null,ws.close();
+  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws?t='+T);
+  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.del){const el=document.querySelector('#msgs [data-id="'+m.del+'"]');if(el)el.remove();return}if(m.cid===cid)addMsg(m)};
+  // Render can restart the server; reconnect automatically.
+  ws.onclose=()=>setTimeout(()=>T&&connect(),2000);
+}
+function sendRaw(body,file){
+  if(ws.readyState!==1)return alert('Reconnecting… try again in a moment.');
+  ws.send(JSON.stringify({cid,body,file}));
+}
+function send(e){e.preventDefault();const v=$('#txt').value.trim();if(!v||!cid)return;sendRaw(v);$('#txt').value=''}
+
+function modal(html){const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="card">${html}</div>`;
+  m.onclick=e=>{if(e.target===m)m.remove()};document.body.appendChild(m);return m}
+function serverModal(){
+  const m=modal(`<h2 style="margin-top:18px">Servers</h2><input id="sname" placeholder="New server name"><button class="go" id="mk">Create server</button>
+  <input id="icode" placeholder="Invite code"><button id="jn">Join server</button><div class="err" id="se"></div>`);
+  const done=async(p,b)=>{try{S=await api(p,'POST',b);sid=S[S.length-1].id;cid=S.find(x=>x.id===sid).channels[0]?.id;m.remove();render()}catch(e){m.querySelector('#se').textContent=e.message}};
+  m.querySelector('#mk').onclick=()=>done('servers',{name:m.querySelector('#sname').value});
+  m.querySelector('#jn').onclick=()=>done('join',{invite:m.querySelector('#icode').value});
+}
+function profile(){
+  const m=modal(`<div class="ban" id="pb" style="${safeUrl(U.banner)?`background-image:url(${safeUrl(U.banner)})`:''}"></div>
+  <div class="row" style="align-items:center">${avatar(U,56)}<b style="font-size:18px">${esc(U.username)}</b>${tag(U)}</div>
+  <div class="row"><button id="up">Change picture</button><button id="ub">Change banner</button></div>
+  <input type="file" id="pf" hidden accept="image/*">
+  <textarea id="bio" rows="3" maxlength="200" placeholder="About you">${esc(U.bio)}</textarea>
+  <div class="row" style="align-items:center">Name color <input type="color" id="col" value="${esc(U.color)}" style="width:50px;padding:2px">
+  Theme <select id="th" style="background:var(--p2);border-radius:10px;padding:8px;border:1px solid var(--ln)">${THEMES.map(t=>`<option ${t===U.theme?'selected':''}>${t}</option>`).join('')}</select></div>
+  <div class="err" id="pe"></div>
+  <div class="row"><button class="go" id="sv">Save changes</button><button id="lo">Log out</button>${U.owner?'<button id="ad">Admin panel</button>':''}</div>`);
+  let pfp=U.pfp,banner=U.banner,tgt;
+  const pick=k=>{tgt=k;m.querySelector('#pf').click()};
+  m.querySelector('#up').onclick=()=>pick('pfp');m.querySelector('#ub').onclick=()=>pick('banner');
+  m.querySelector('#pf').onchange=async e=>{try{const j=await upload(e.target.files[0]);
+    if(tgt==='pfp')pfp=j.url;else{banner=j.url;m.querySelector('#pb').style.backgroundImage=`url(${j.url})`}}catch(x){m.querySelector('#pe').textContent=x.message}};
+  m.querySelector('#th').onchange=e=>document.documentElement.dataset.theme=e.target.value;
+  m.querySelector('#sv').onclick=async()=>{try{U=await api('me','PATCH',{pfp,banner,bio:m.querySelector('#bio').value,color:m.querySelector('#col').value,theme:m.querySelector('#th').value});
+    document.documentElement.dataset.theme=U.theme;m.remove();render()}catch(e){m.querySelector('#pe').textContent=e.message}};
+  const ad=m.querySelector('#ad');if(ad)ad.onclick=()=>{m.remove();admin()};
+  m.querySelector('#lo').onclick=()=>{localStorage.removeItem('t');T=null;if(ws)ws.onclose=null,ws.close();location.reload()};
+}
+async function admin(){
+  const m=modal('<h2 style="margin-top:18px;font-size:24px">Admin panel</h2><div id="ab">Loading…</div>');m.firstChild.style.width='min(640px,100%)';
+  const load=async()=>{try{const d=await api('admin');
+    m.querySelector('#ab').innerHTML=`<div class="row"><button id="bk">Download backup</button><button id="rs">Restore backup</button><input type="file" id="rf" hidden accept=".json"></div><p><b>${d.stats.users}</b> users, <b>${d.stats.servers}</b> servers, <b>${d.stats.messages}</b> messages, <b>${d.stats.mb} MB</b> of uploads</p><h3 style="margin:14px 0 8px">Users</h3>`+
+    d.users.map(u=>`<div class="row ar"><b>${esc(u.username)}${u.banned?' (banned)':''}</b>${u.owner?tag(u):`<button data-b="${u.id}" data-v="${!u.banned}">${u.banned?'Unban':'Ban'}</button><button data-du="${u.id}">Delete</button>`}</div>`).join('')+
+    '<h3 style="margin:14px 0 8px">Servers</h3>'+d.servers.map(s=>`<div class="row ar"><b>${esc(s.name)}</b><span>${s.members} members</span><button data-ds="${s.id}">Delete</button></div>`).join('');
+    m.querySelector('#bk').onclick=async()=>{const r=await fetch('/api/admin/backup',{headers:{'x-token':T}});const a=document.createElement('a');a.href=URL.createObjectURL(await r.blob());a.download='d-chat-backup.json';a.click()};
+    m.querySelector('#rs').onclick=()=>m.querySelector('#rf').click();
+    m.querySelector('#rf').onchange=async e=>{if(!e.target.files[0]||!confirm('This replaces ALL current data with the backup. Continue?'))return;const r=await fetch('/api/admin/restore',{method:'POST',headers:{'x-token':T,'content-type':'application/octet-stream'},body:e.target.files[0]});alert(r.ok?'Restored. Reloading.':'Restore failed.');if(r.ok)location.reload()};
+    const on=(a,f)=>m.querySelectorAll(a).forEach(b=>b.onclick=async()=>{try{await f(b)}catch(e){alert(e.message)}});
+    on('[data-b]',async b=>{await api(`admin/users/${b.dataset.b}/ban`,'POST',{banned:b.dataset.v==='true'});load()});
+    on('[data-du]',async b=>{if(confirm('Delete this user?')){await api('admin/users/'+b.dataset.du,'DELETE');load()}});
+    on('[data-ds]',async b=>{if(confirm('Delete this server and everything in it?')){await api('admin/servers/'+b.dataset.ds,'DELETE');S=await api('servers');if(!S.find(x=>x.id===sid)){sid=S[0]?.id;cid=S[0]?.channels[0]?.id}render();load()}});
+  }catch(e){m.querySelector('#ab').textContent=e.message}};load();
+}
+T?boot():authView();
+</script>
+</body>
+</html>
