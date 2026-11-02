@@ -30,8 +30,8 @@ const pub = u => ({ owner: isOwner(u), staff: isStaff(u), created: u.created, id
 const auth = async (req, res, next) => {
   const t = req.get('x-token');
   const r = t && await q('SELECT u.* FROM sessions s JOIN users u ON u.id=s.uid WHERE token=$1', [t]);
-  if (!r || !r[0]) return res.status(401).json({ error: 'Please log in again.' });
-  if (r[0].banned) return res.status(403).json({ error: 'This account is banned.' });
+  if (!r || !r[0]) return res.status(401).json({ error: 'There was an error. Please try logging in again.' });
+  if (r[0].banned) return res.status(403).json({ error: 'This account is banned. Contact staff for more info.' });
   req.u = r[0]; next();
 };
 const hits = {};
